@@ -1,0 +1,54 @@
+-- Чит для автоматической телепортации к золотым блокам
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local function teleportToCoins()
+    -- Ждем загрузки персонажа
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    -- Создаем интерфейс
+    local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+    local textLabel = Instance.new("TextLabel", screenGui)
+    textLabel.Size = UDim2.new(0, 200, 0, 50)
+    textLabel.Position = UDim2.new(0.5, -100, 0, 10)
+    textLabel.Text = "🔍 Поиск блоков..."
+    textLabel.BackgroundTransparency = 0.7
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+
+    -- Основной цикл телепортации
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local closestBlock, closestDistance = nil, math.huge
+        
+        -- Ищем ближайший блок
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "CoinBlock" and obj:IsA("BasePart") then
+                local distance = (obj.Position - rootPart.Position).Magnitude
+                if distance < closestDistance then
+                    closestBlock = obj
+                    closestDistance = distance
+                end
+            end
+        end
+
+        -- Телепортируемся если нашли блок
+        if closestBlock then
+            textLabel.Text = "💰 Блок найден! TP..."
+            rootPart.CFrame = CFrame.new(closestBlock.Position + Vector3.new(0, 3, 0))
+        else
+            textLabel.Text = "🔍 Блоки не найдены"
+        end
+    end)
+
+    -- Функция отключения чита
+    return function()
+        connection:Disconnect()
+        screenGui:Destroy()
+    end
+end
+
+-- Запуск и возврат функции отключения
+return teleportToCoins()
