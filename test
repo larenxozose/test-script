@@ -1,54 +1,248 @@
--- Чит для автоматической телепортации к золотым блокам
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
 
-local function teleportToCoins()
-    -- Ждем загрузки персонажа
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local rootPart = character:WaitForChild("HumanoidRootPart")
+-- Настройки
+local DEFAULT_WALKSPEED = 16
+local TELEPORT_DELAY = 0.5
 
-    -- Создаем интерфейс
-    local screenGui = Instance.new("ScreenGui", player.PlayerGui)
-    local textLabel = Instance.new("TextLabel", screenGui)
-    textLabel.Size = UDim2.new(0, 200, 0, 50)
-    textLabel.Position = UDim2.new(0.5, -100, 0, 10)
-    textLabel.Text = "🔍 Поиск блоков..."
-    textLabel.BackgroundTransparency = 0.7
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
+-- Создаем GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NeonHUB"
+ScreenGui.Parent = player.PlayerGui
 
-    -- Основной цикл телепортации
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local closestBlock, closestDistance = nil, math.huge
-        
-        -- Ищем ближайший блок
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj.Name == "CoinBlock" and obj:IsA("BasePart") then
-                local distance = (obj.Position - rootPart.Position).Magnitude
-                if distance < closestDistance then
-                    closestBlock = obj
-                    closestDistance = distance
-                end
-            end
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 250) -- Увеличили высоту для новой кнопки
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+MainFrame.BackgroundTransparency = 0.2
+MainFrame.BorderSizePixel = 0
+
+-- Закругление углов
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+-- Неоновая обводка
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 255, 255)
+UIStroke.Thickness = 2
+UIStroke.Transparency = 0.5
+UIStroke.Parent = MainFrame
+
+MainFrame.Parent = ScreenGui
+
+-- Заголовок
+local Title = Instance.new("TextLabel")
+Title.Text = "NEON HUB"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Position = UDim2.new(0, 0, 0, 10)
+Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- Кнопка WalkSpeed
+local WalkSpeedButton = Instance.new("TextButton")
+WalkSpeedButton.Size = UDim2.new(0.8, 0, 0, 40)
+WalkSpeedButton.Position = UDim2.new(0.1, 0, 0.25, 0)
+WalkSpeedButton.Text = "WalkSpeed: OFF"
+WalkSpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+WalkSpeedButton.AutoButtonColor = false
+
+local WSCorner = Instance.new("UICorner")
+WSCorner.CornerRadius = UDim.new(0, 8)
+WSCorner.Parent = WalkSpeedButton
+
+local WSStroke = Instance.new("UIStroke")
+WSStroke.Color = Color3.fromRGB(0, 200, 200)
+WSStroke.Parent = WalkSpeedButton
+
+WalkSpeedButton.Parent = MainFrame
+
+-- Кнопка AutoFarm (для монет)
+local AutoFarmButton = Instance.new("TextButton")
+AutoFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
+AutoFarmButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+AutoFarmButton.Text = "AutoFarm: OFF"
+AutoFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+AutoFarmButton.AutoButtonColor = false
+
+local AFCorner = Instance.new("UICorner")
+AFCorner.CornerRadius = UDim.new(0, 8)
+AFCorner.Parent = AutoFarmButton
+
+local AFStroke = Instance.new("UIStroke")
+AFStroke.Color = Color3.fromRGB(0, 200, 200)
+AFStroke.Parent = AutoFarmButton
+
+AutoFarmButton.Parent = MainFrame
+
+-- Новая кнопка для ProximityPrompt
+local ProxFarmButton = Instance.new("TextButton")
+ProxFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
+ProxFarmButton.Position = UDim2.new(0.1, 0, 0.75, 0)
+ProxFarmButton.Text = "ProxFarm: OFF"
+ProxFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+ProxFarmButton.AutoButtonColor = false
+
+local ProxCorner = Instance.new("UICorner")
+ProxCorner.CornerRadius = UDim.new(0, 8)
+ProxCorner.Parent = ProxFarmButton
+
+local ProxStroke = Instance.new("UIStroke")
+ProxStroke.Color = Color3.fromRGB(0, 200, 200)
+ProxStroke.Parent = ProxFarmButton
+
+ProxFarmButton.Parent = MainFrame
+
+-- Переменные состояния
+local WalkSpeedEnabled = false
+local AutoFarmEnabled = false
+local ProxFarmEnabled = false
+local TeleportConnection = nil
+local ProxConnection = nil
+
+-- Функция WalkSpeed
+local function ToggleWalkSpeed()
+    WalkSpeedEnabled = not WalkSpeedEnabled
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    
+    if WalkSpeedEnabled then
+        WalkSpeedButton.Text = "WalkSpeed: ON (50)"
+        WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+        if humanoid then
+            humanoid.WalkSpeed = 50
         end
-
-        -- Телепортируемся если нашли блок
-        if closestBlock then
-            textLabel.Text = "💰 Блок найден! TP..."
-            rootPart.CFrame = CFrame.new(closestBlock.Position + Vector3.new(0, 3, 0))
-        else
-            textLabel.Text = "🔍 Блоки не найдены"
+    else
+        WalkSpeedButton.Text = "WalkSpeed: OFF"
+        WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        if humanoid then
+            humanoid.WalkSpeed = DEFAULT_WALKSPEED
         end
-    end)
-
-    -- Функция отключения чита
-    return function()
-        connection:Disconnect()
-        screenGui:Destroy()
     end
 end
 
--- Запуск и возврат функции отключения
-return teleportToCoins()
+-- Функция AutoFarm (для монет)
+local function ToggleAutoFarm()
+    AutoFarmEnabled = not AutoFarmEnabled
+    
+    if AutoFarmEnabled then
+        AutoFarmButton.Text = "AutoFarm: ON"
+        AutoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+        
+        TeleportConnection = RunService.Heartbeat:Connect(function()
+            if not player.Character then return end
+            
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if not humanoidRootPart then return end
+            
+            for _, part in ipairs(workspace:GetDescendants()) do
+                if part.Name == "CoinBlock" and part:IsA("BasePart") then
+                    humanoidRootPart.CFrame = part.CFrame * CFrame.new(0, 3, 0)
+                    task.wait(TELEPORT_DELAY)
+                    break
+                end
+            end
+        end)
+    else
+        AutoFarmButton.Text = "AutoFarm: OFF"
+        AutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        
+        if TeleportConnection then
+            TeleportConnection:Disconnect()
+            TeleportConnection = nil
+        end
+    end
+end
+
+-- Новая функция для ProximityPrompt
+local function ToggleProxFarm()
+    ProxFarmEnabled = not ProxFarmEnabled
+    
+    if ProxFarmEnabled then
+        ProxFarmButton.Text = "ProxFarm: ON"
+        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+        
+        ProxConnection = RunService.Heartbeat:Connect(function()
+            if not player.Character then return end
+            
+            -- Ищем все ProximityPrompt в радиусе
+            for _, prompt in ipairs(workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    -- Активируем prompt если персонаж рядом
+                    local distance = (prompt.Parent.Position - player.Character:GetPivot().Position).Magnitude
+                    if distance <= prompt.MaxActivationDistance then
+                        fireproximityprompt(prompt)
+                        task.wait(0.1) -- Задержка между активациями
+                    end
+                end
+            end
+        end)
+    else
+        ProxFarmButton.Text = "ProxFarm: OFF"
+        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        
+        if ProxConnection then
+            ProxConnection:Disconnect()
+            ProxConnection = nil
+        end
+    end
+end
+
+-- Обработчики кликов
+WalkSpeedButton.MouseButton1Click:Connect(ToggleWalkSpeed)
+AutoFarmButton.MouseButton1Click:Connect(ToggleAutoFarm)
+ProxFarmButton.MouseButton1Click:Connect(ToggleProxFarm)
+
+-- Обновление WalkSpeed при возрождении
+player.CharacterAdded:Connect(function(character)
+    if WalkSpeedEnabled then
+        task.wait(1)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 50
+        end
+    end
+end)
+
+-- Перетаскивание GUI
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updateInput(input)
+    end
+end)
