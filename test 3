@@ -13,7 +13,7 @@ ScreenGui.Name = "NeonHUB"
 ScreenGui.Parent = player.PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 250) -- Увеличили высоту для новой кнопки
+MainFrame.Size = UDim2.new(0, 300, 0, 250) -- Увеличена высота для новой кнопки
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
 MainFrame.BackgroundTransparency = 0.2
@@ -46,7 +46,7 @@ Title.Parent = MainFrame
 -- Кнопка WalkSpeed
 local WalkSpeedButton = Instance.new("TextButton")
 WalkSpeedButton.Size = UDim2.new(0.8, 0, 0, 40)
-WalkSpeedButton.Position = UDim2.new(0.1, 0, 0.25, 0)
+WalkSpeedButton.Position = UDim2.new(0.1, 0, 0.2, 0)
 WalkSpeedButton.Text = "WalkSpeed: OFF"
 WalkSpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
@@ -62,10 +62,10 @@ WSStroke.Parent = WalkSpeedButton
 
 WalkSpeedButton.Parent = MainFrame
 
--- Кнопка AutoFarm (для монет)
+-- Кнопка AutoFarm (телепортация)
 local AutoFarmButton = Instance.new("TextButton")
 AutoFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
-AutoFarmButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+AutoFarmButton.Position = UDim2.new(0.1, 0, 0.4, 0)
 AutoFarmButton.Text = "AutoFarm: OFF"
 AutoFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
@@ -81,29 +81,29 @@ AFStroke.Parent = AutoFarmButton
 
 AutoFarmButton.Parent = MainFrame
 
--- Новая кнопка для ProximityPrompt
-local ProxFarmButton = Instance.new("TextButton")
-ProxFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
-ProxFarmButton.Position = UDim2.new(0.1, 0, 0.75, 0)
-ProxFarmButton.Text = "ProxFarm: OFF"
-ProxFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-ProxFarmButton.AutoButtonColor = false
+-- Кнопка ProxAutoFarm (активация ProximityPrompt)
+local ProxAutoFarmButton = Instance.new("TextButton")
+ProxAutoFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
+ProxAutoFarmButton.Position = UDim2.new(0.1, 0, 0.6, 0)
+ProxAutoFarmButton.Text = "ProxAutoFarm: OFF"
+ProxAutoFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ProxAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+ProxAutoFarmButton.AutoButtonColor = false
 
-local ProxCorner = Instance.new("UICorner")
-ProxCorner.CornerRadius = UDim.new(0, 8)
-ProxCorner.Parent = ProxFarmButton
+local ProxAFCorner = Instance.new("UICorner")
+ProxAFCorner.CornerRadius = UDim.new(0, 8)
+ProxAFCorner.Parent = ProxAutoFarmButton
 
-local ProxStroke = Instance.new("UIStroke")
-ProxStroke.Color = Color3.fromRGB(0, 200, 200)
-ProxStroke.Parent = ProxFarmButton
+local ProxAFStroke = Instance.new("UIStroke")
+ProxAFStroke.Color = Color3.fromRGB(0, 200, 200)
+ProxAFStroke.Parent = ProxAutoFarmButton
 
-ProxFarmButton.Parent = MainFrame
+ProxAutoFarmButton.Parent = MainFrame
 
 -- Переменные состояния
 local WalkSpeedEnabled = false
 local AutoFarmEnabled = false
-local ProxFarmEnabled = false
+local ProxAutoFarmEnabled = false
 local TeleportConnection = nil
 local ProxConnection = nil
 
@@ -127,7 +127,7 @@ local function ToggleWalkSpeed()
     end
 end
 
--- Функция AutoFarm (для монет)
+-- Функция AutoFarm (телепортация)
 local function ToggleAutoFarm()
     AutoFarmEnabled = not AutoFarmEnabled
     
@@ -160,13 +160,13 @@ local function ToggleAutoFarm()
     end
 end
 
--- Новая функция для ProximityPrompt с обходом задержки и дополнительной проверкой
-local function ToggleProxFarm()
-    ProxFarmEnabled = not ProxFarmEnabled
+-- Функция ProxAutoFarm (активация ProximityPrompt)
+local function ToggleProxAutoFarm()
+    ProxAutoFarmEnabled = not ProxAutoFarmEnabled
     
-    if ProxFarmEnabled then
-        ProxFarmButton.Text = "ProxFarm: ON"
-        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+    if ProxAutoFarmEnabled then
+        ProxAutoFarmButton.Text = "ProxAutoFarm: ON"
+        ProxAutoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
         
         ProxConnection = RunService.Heartbeat:Connect(function()
             if not player.Character then return end
@@ -176,7 +176,6 @@ local function ToggleProxFarm()
             
             -- Ищем ближайший CoinBlock с ProximityPrompt
             local closestPrompt = nil
-            local closestBlock = nil
             local minDistance = math.huge
             
             for _, part in ipairs(workspace:GetDescendants()) do
@@ -186,27 +185,20 @@ local function ToggleProxFarm()
                         local distance = (part.Position - humanoidRootPart.Position).Magnitude
                         if distance <= prompt.MaxActivationDistance and distance < minDistance then
                             closestPrompt = prompt
-                            closestBlock = part
                             minDistance = distance
                         end
                     end
                 end
             end
             
-            -- Если найден подходящий prompt, телепортируемся и активируем
-            if closestPrompt and closestBlock then
-                humanoidRootPart.CFrame = closestBlock.CFrame * CFrame.new(0, 3, 0) -- Телепорт к блоку
-                local success, err = pcall(function()
-                    fireproximityprompt(closestPrompt) -- Мгновенная активация
-                end)
-                if not success then
-                    warn("Failed to fire ProximityPrompt: " .. tostring(err))
-                end
+            -- Активируем ближайший ProximityPrompt
+            if closestPrompt then
+                fireproximityprompt(closestPrompt)
             end
         end)
     else
-        ProxFarmButton.Text = "ProxFarm: OFF"
-        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+        ProxAutoFarmButton.Text = "ProxAutoFarm: OFF"
+        ProxAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
         
         if ProxConnection then
             ProxConnection:Disconnect()
@@ -218,7 +210,7 @@ end
 -- Обработчики кликов
 WalkSpeedButton.MouseButton1Click:Connect(ToggleWalkSpeed)
 AutoFarmButton.MouseButton1Click:Connect(ToggleAutoFarm)
-ProxFarmButton.MouseButton1Click:Connect(ToggleProxFarm)
+ProxAutoFarmButton.MouseButton1Click:Connect(ToggleProxAutoFarm)
 
 -- Обновление WalkSpeed при возрождении
 player.CharacterAdded:Connect(function(character)
