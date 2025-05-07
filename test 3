@@ -160,7 +160,7 @@ local function ToggleAutoFarm()
     end
 end
 
--- Новая функция для ProximityPrompt с обходом задержки
+-- Новая функция для ProximityPrompt с обходом задержки и дополнительной проверкой
 local function ToggleProxFarm()
     ProxFarmEnabled = not ProxFarmEnabled
     
@@ -176,6 +176,7 @@ local function ToggleProxFarm()
             
             -- Ищем ближайший CoinBlock с ProximityPrompt
             local closestPrompt = nil
+            local closestBlock = nil
             local minDistance = math.huge
             
             for _, part in ipairs(workspace:GetDescendants()) do
@@ -185,6 +186,7 @@ local function ToggleProxFarm()
                         local distance = (part.Position - humanoidRootPart.Position).Magnitude
                         if distance <= prompt.MaxActivationDistance and distance < minDistance then
                             closestPrompt = prompt
+                            closestBlock = part
                             minDistance = distance
                         end
                     end
@@ -192,10 +194,14 @@ local function ToggleProxFarm()
             end
             
             -- Если найден подходящий prompt, телепортируемся и активируем
-            if closestPrompt then
-                local block = closestPrompt.Parent
-                humanoidRootPart.CFrame = block.CFrame * CFrame.new(0, 3, 0) -- Телепорт к блоку
-                fireproximityprompt(closestPrompt) -- Мгновенная активация
+            if closestPrompt and closestBlock then
+                humanoidRootPart.CFrame = closestBlock.CFrame * CFrame.new(0, 3, 0) -- Телепорт к блоку
+                local success, err = pcall(function()
+                    fireproximityprompt(closestPrompt) -- Мгновенная активация
+                end)
+                if not success then
+                    warn("Failed to fire ProximityPrompt: " .. tostring(err))
+                end
             end
         end)
     else
@@ -217,7 +223,7 @@ ProxFarmButton.MouseButton1Click:Connect(ToggleProxFarm)
 -- Обновление WalkSpeed при возрождении
 player.CharacterAdded:Connect(function(character)
     if WalkSpeedEnabled then
-ubarb    task.wait(1)
+        task.wait(1)
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid then
             humanoid.WalkSpeed = 50
