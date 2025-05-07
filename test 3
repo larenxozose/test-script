@@ -13,7 +13,7 @@ ScreenGui.Name = "NeonHUB"
 ScreenGui.Parent = player.PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 250) -- Увеличена высота для новой кнопки
+MainFrame.Size = UDim2.new(0, 300, 0, 250)
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
 MainFrame.BackgroundTransparency = 0.2
@@ -42,6 +42,44 @@ Title.TextColor3 = Color3.fromRGB(0, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
+
+-- Кнопка закрытия
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -40, 0, 10)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 40, 40)
+CloseButton.AutoButtonColor = false
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+local CloseStroke = Instance.new("UIStroke")
+CloseStroke.Color = Color3.fromRGB(200, 0, 0)
+CloseStroke.Parent = CloseButton
+
+CloseButton.Parent = MainFrame
+
+-- Кнопка сворачивания/разворачивания
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -80, 0, 10)
+MinimizeButton.Text = "–"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
+MinimizeButton.AutoButtonColor = false
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 8)
+MinimizeCorner.Parent = MinimizeButton
+
+local MinimizeStroke = Instance.new("UIStroke")
+MinimizeStroke.Color = Color3.fromRGB(0, 200, 200)
+MinimizeStroke.Parent = MinimizeButton
+
+MinimizeButton.Parent = MainFrame
 
 -- Кнопка WalkSpeed
 local WalkSpeedButton = Instance.new("TextButton")
@@ -106,6 +144,53 @@ local AutoFarmEnabled = false
 local ProxAutoFarmEnabled = false
 local TeleportConnection = nil
 local ProxConnection = nil
+local IsMinimized = false
+
+-- Функция закрытия
+local function CloseGUI()
+    -- Отключаем все активные соединения
+    if TeleportConnection then
+        TeleportConnection:Disconnect()
+        TeleportConnection = nil
+    end
+    if ProxConnection then
+        ProxConnection:Disconnect()
+        ProxConnection = nil
+    end
+    -- Удаляем GUI
+    ScreenGui:Destroy()
+end
+
+-- Функция сворачивания/разворачивания
+local function ToggleMinimize()
+    IsMinimized = not IsMinimized
+    
+    if IsMinimized then
+        -- Сворачиваем: скрываем все элементы, кроме заголовка и кнопок управления
+        MinimizeButton.Text = "+"
+        MainFrame.Size = UDim2.new(0, 150, 0, 50)
+        MainFrame.Position = MainFrame.Position -- Сохраняем позицию
+        WalkSpeedButton.Visible = false
+        AutoFarmButton.Visible = false
+        ProxAutoFarmButton.Visible = false
+        Title.Position = UDim2.new(0, 0, 0, 10)
+        Title.Size = UDim2.new(1, 0, 0, 30)
+        MinimizeButton.Position = UDim2.new(1, -80, 0, 10)
+        CloseButton.Position = UDim2.new(1, -40, 0, 10)
+    else
+        -- Разворачиваем: возвращаем всё обратно
+        MinimizeButton.Text = "–"
+        MainFrame.Size = UDim2.new(0, 300, 0, 250)
+        MainFrame.Position = MainFrame.Position -- Сохраняем позицию
+        WalkSpeedButton.Visible = true
+        AutoFarmButton.Visible = true
+        ProxAutoFarmButton.Visible = true
+        Title.Position = UDim2.new(0, 0, 0, 10)
+        Title.Size = UDim2.new(1, 0, 0, 30)
+        MinimizeButton.Position = UDim2.new(1, -80, 0, 10)
+        CloseButton.Position = UDim2.new(1, -40, 0, 10)
+    end
+end
 
 -- Функция WalkSpeed
 local function ToggleWalkSpeed()
@@ -211,6 +296,8 @@ end
 WalkSpeedButton.MouseButton1Click:Connect(ToggleWalkSpeed)
 AutoFarmButton.MouseButton1Click:Connect(ToggleAutoFarm)
 ProxAutoFarmButton.MouseButton1Click:Connect(ToggleProxAutoFarm)
+CloseButton.MouseButton1Click:Connect(CloseGUI)
+MinimizeButton.MouseButton1Click:Connect(ToggleMinimize)
 
 -- Обновление WalkSpeed при возрождении
 player.CharacterAdded:Connect(function(character)
