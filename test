@@ -1,248 +1,198 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
--- Настройки
-local DEFAULT_WALKSPEED = 16
-local TELEPORT_DELAY = 0.5
+-- Create the ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HitboxExpanderGui"
+screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Создаем GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NeonHUB"
-ScreenGui.Parent = player.PlayerGui
+-- Create the main frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 200)
+frame.Position = UDim2.new(0.5, -150, 0.5, -100)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 250) -- Увеличили высоту для новой кнопки
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
-MainFrame.BackgroundTransparency = 0.2
-MainFrame.BorderSizePixel = 0
+-- Create the title bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = frame
 
--- Закругление углов
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 12)
-UICorner.Parent = MainFrame
+-- Create the title label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -60, 1, 0)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "NeonHUB"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = titleBar
 
--- Неоновая обводка
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(0, 255, 255)
-UIStroke.Thickness = 2
-UIStroke.Transparency = 0.5
-UIStroke.Parent = MainFrame
+-- Create the minimize button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -60, 0, 0)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.Parent = titleBar
 
-MainFrame.Parent = ScreenGui
+-- Create the close button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = titleBar
 
--- Заголовок
-local Title = Instance.new("TextLabel")
-Title.Text = "NEON HUB"
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Position = UDim2.new(0, 0, 0, 10)
-Title.TextColor3 = Color3.fromRGB(0, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.Parent = MainFrame
+-- Create the slider frame
+local sliderFrame = Instance.new("Frame")
+sliderFrame.Size = UDim2.new(0, 250, 0, 30)
+sliderFrame.Position = UDim2.new(0.5, -125, 0, 50)
+sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+sliderFrame.BorderSizePixel = 0
+sliderFrame.Parent = frame
 
--- Кнопка WalkSpeed
-local WalkSpeedButton = Instance.new("TextButton")
-WalkSpeedButton.Size = UDim2.new(0.8, 0, 0, 40)
-WalkSpeedButton.Position = UDim2.new(0.1, 0, 0.25, 0)
-WalkSpeedButton.Text = "WalkSpeed: OFF"
-WalkSpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-WalkSpeedButton.AutoButtonColor = false
+-- Create the slider button
+local sliderButton = Instance.new("TextButton")
+sliderButton.Size = UDim2.new(0, 20, 0, 30)
+sliderButton.Position = UDim2.new(0, 0, 0, 0)
+sliderButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+sliderButton.Text = ""
+sliderButton.Parent = sliderFrame
 
-local WSCorner = Instance.new("UICorner")
-WSCorner.CornerRadius = UDim.new(0, 8)
-WSCorner.Parent = WalkSpeedButton
+-- Create the slider label
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(1, 0, 0, 30)
+sliderLabel.Position = UDim2.new(0, 0, 0, 40)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Hitbox Multiplier: 1x"
+sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+sliderLabel.TextScaled = true
+sliderLabel.Font = Enum.Font.SourceSans
+sliderLabel.Parent = sliderFrame
 
-local WSStroke = Instance.new("UIStroke")
-WSStroke.Color = Color3.fromRGB(0, 200, 200)
-WSStroke.Parent = WalkSpeedButton
+-- Variables for dragging and slider
+local isDraggingFrame = false
+local isDraggingSlider = false
+local minimized = false
+local originalSize = frame.Size
+local originalPos = frame.Position
+local defaultHitboxSize = Vector3.new(2, 2, 1) -- Default humanoid hitbox size (HumanoidRootPart)
+local hitboxMultiplier = 1
 
-WalkSpeedButton.Parent = MainFrame
-
--- Кнопка AutoFarm (для монет)
-local AutoFarmButton = Instance.new("TextButton")
-AutoFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
-AutoFarmButton.Position = UDim2.new(0.1, 0, 0.5, 0)
-AutoFarmButton.Text = "AutoFarm: OFF"
-AutoFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-AutoFarmButton.AutoButtonColor = false
-
-local AFCorner = Instance.new("UICorner")
-AFCorner.CornerRadius = UDim.new(0, 8)
-AFCorner.Parent = AutoFarmButton
-
-local AFStroke = Instance.new("UIStroke")
-AFStroke.Color = Color3.fromRGB(0, 200, 200)
-AFStroke.Parent = AutoFarmButton
-
-AutoFarmButton.Parent = MainFrame
-
--- Новая кнопка для ProximityPrompt
-local ProxFarmButton = Instance.new("TextButton")
-ProxFarmButton.Size = UDim2.new(0.8, 0, 0, 40)
-ProxFarmButton.Position = UDim2.new(0.1, 0, 0.75, 0)
-ProxFarmButton.Text = "ProxFarm: OFF"
-ProxFarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-ProxFarmButton.AutoButtonColor = false
-
-local ProxCorner = Instance.new("UICorner")
-ProxCorner.CornerRadius = UDim.new(0, 8)
-ProxCorner.Parent = ProxFarmButton
-
-local ProxStroke = Instance.new("UIStroke")
-ProxStroke.Color = Color3.fromRGB(0, 200, 200)
-ProxStroke.Parent = ProxFarmButton
-
-ProxFarmButton.Parent = MainFrame
-
--- Переменные состояния
-local WalkSpeedEnabled = false
-local AutoFarmEnabled = false
-local ProxFarmEnabled = false
-local TeleportConnection = nil
-local ProxConnection = nil
-
--- Функция WalkSpeed
-local function ToggleWalkSpeed()
-    WalkSpeedEnabled = not WalkSpeedEnabled
-    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    
-    if WalkSpeedEnabled then
-        WalkSpeedButton.Text = "WalkSpeed: ON (50)"
-        WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-        if humanoid then
-            humanoid.WalkSpeed = 50
-        end
-    else
-        WalkSpeedButton.Text = "WalkSpeed: OFF"
-        WalkSpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-        if humanoid then
-            humanoid.WalkSpeed = DEFAULT_WALKSPEED
-        end
-    end
-end
-
--- Функция AutoFarm (для монет)
-local function ToggleAutoFarm()
-    AutoFarmEnabled = not AutoFarmEnabled
-    
-    if AutoFarmEnabled then
-        AutoFarmButton.Text = "AutoFarm: ON"
-        AutoFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-        
-        TeleportConnection = RunService.Heartbeat:Connect(function()
-            if not player.Character then return end
-            
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then return end
-            
-            for _, part in ipairs(workspace:GetDescendants()) do
-                if part.Name == "CoinBlock" and part:IsA("BasePart") then
-                    humanoidRootPart.CFrame = part.CFrame * CFrame.new(0, 3, 0)
-                    task.wait(TELEPORT_DELAY)
-                    break
-                end
+-- Function to update hitboxes
+local function updateHitboxes(multiplier)
+    for _, player in pairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                humanoidRootPart.Size = defaultHitboxSize * multiplier
             end
-        end)
-    else
-        AutoFarmButton.Text = "AutoFarm: OFF"
-        AutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-        
-        if TeleportConnection then
-            TeleportConnection:Disconnect()
-            TeleportConnection = nil
         end
     end
 end
 
--- Новая функция для ProximityPrompt
-local function ToggleProxFarm()
-    ProxFarmEnabled = not ProxFarmEnabled
-    
-    if ProxFarmEnabled then
-        ProxFarmButton.Text = "ProxFarm: ON"
-        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-        
-        ProxConnection = RunService.Heartbeat:Connect(function()
-            if not player.Character then return end
-            
-            -- Ищем все ProximityPrompt в радиусе
-            for _, prompt in ipairs(workspace:GetDescendants()) do
-                if prompt:IsA("ProximityPrompt") then
-                    -- Активируем prompt если персонаж рядом
-                    local distance = (prompt.Parent.Position - player.Character:GetPivot().Position).Magnitude
-                    if distance <= prompt.MaxActivationDistance then
-                        fireproximityprompt(prompt)
-                        task.wait(0.1) -- Задержка между активациями
-                    end
-                end
-            end
-        end)
-    else
-        ProxFarmButton.Text = "ProxFarm: OFF"
-        ProxFarmButton.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
-        
-        if ProxConnection then
-            ProxConnection:Disconnect()
-            ProxConnection = nil
-        end
-    end
-end
-
--- Обработчики кликов
-WalkSpeedButton.MouseButton1Click:Connect(ToggleWalkSpeed)
-AutoFarmButton.MouseButton1Click:Connect(ToggleAutoFarm)
-ProxFarmButton.MouseButton1Click:Connect(ToggleProxFarm)
-
--- Обновление WalkSpeed при возрождении
-player.CharacterAdded:Connect(function(character)
-    if WalkSpeedEnabled then
-        task.wait(1)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = 50
-        end
-    end
+-- Slider functionality
+sliderButton.MouseButton1Down:Connect(function()
+    isDraggingSlider = true
 end)
 
--- Перетаскивание GUI
-local dragging
-local dragInput
-local dragStart
-local startPos
-
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-MainFrame.InputBegan:Connect(function(input)
+UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
+        isDraggingSlider = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mouseX = input.Position.X
+        local sliderFrameX = sliderFrame.AbsolutePosition.X
+        local newX = math.clamp(mouseX - sliderFrameX, 0, sliderFrame.AbsoluteSize.X - sliderButton.AbsoluteSize.X)
+        sliderButton.Position = UDim2.new(0, newX, 0, 0)
         
-        input.Changed:Connect(function()
+        -- Calculate multiplier (1x to 5x)
+        local sliderWidth = sliderFrame.AbsoluteSize.X - sliderButton.AbsoluteSize.X
+        hitboxMultiplier = 1 + (newX / sliderWidth) * 4
+        sliderLabel.Text = string.format("Hitbox Multiplier: %.1fx", hitboxMultiplier)
+        
+        -- Update hitboxes
+        updateHitboxes(hitboxMultiplier)
+    end
+end)
+
+-- Minimize button functionality
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        frame.Size = UDim2.new(0, 300, 0, 30)
+        sliderFrame.Visible = false
+    else
+        frame.Size = originalSize
+        sliderFrame.Visible = true
+    end
+end)
+
+-- Close button functionality
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    -- Reset hitboxes to default
+    updateHitboxes(1)
+end)
+
+-- Dragging functionality for the frame
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingFrame = true
+        local initialPos = input.Position
+        local initialFramePos = frame.Position
+        
+        local connection
+        connection = UserInputService.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement and isDraggingFrame then
+                local delta = input.Position - initialPos
+                frame.Position = UDim2.new(
+                    initialFramePos.X.Scale,
+                    initialFramePos.X.Offset + delta.X,
+                    initialFramePos.Y.Scale,
+                    initialFramePos.Y.Offset + delta.Y
+                )
+            end
+        end)
+        
+        input:GetPropertyChangedSignal("UserInputState"):Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+                isDraggingFrame = false
+                connection:Disconnect()
             end
         end)
     end
 end)
 
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
+-- Update hitboxes when new players join or characters are added
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        humanoidRootPart.Size = defaultHitboxSize * hitboxMultiplier
+    end)
 end)
 
-UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        updateInput(input)
+-- Initial hitbox setup for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.Size = defaultHitboxSize * hitboxMultiplier
+        end
     end
-end)
+end
