@@ -1,8 +1,12 @@
 -- Основной скрипт для меню чита
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+local success, UserInputService = pcall(game.GetService, game, "UserInputService")
+local success2, Players = pcall(game.GetService, game, "Players")
+local success3, RunService = pcall(game.GetService, game, "RunService")
+local LocalPlayer = success2 and Players and Players.LocalPlayer
+
+if not (success and success2 and success3) or not LocalPlayer then
+    return
+end
 
 -- Настройки чита
 local Settings = {
@@ -167,7 +171,7 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end)
 
--- Реализация Silent Aim (без mousemoverel)
+-- Реализация Silent Aim
 RunService.RenderStepped:Connect(function()
     if not Settings.SilentAimEnabled then return end
 
@@ -175,6 +179,8 @@ RunService.RenderStepped:Connect(function()
     local closestDistance = Settings.SilentAimFOV
     local camera = workspace.CurrentCamera
     local mousePos = UserInputService:GetMouseLocation()
+
+    if not camera then return end
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character or not player.Character:FindFirstChild("Head") then continue end
@@ -191,8 +197,7 @@ RunService.RenderStepped:Connect(function()
 
     -- Симуляция прицеливания (без прямого управления мышью)
     if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
-        -- Логика Silent Aim: можно модифицировать оружие или камеру игрока
-        -- Здесь просто выводим информацию для отладки
+        -- Логика Silent Aim: можно модифицировать оружие или камеру
         print("Silent Aim на: " .. closestPlayer.Name)
     end
 end)
