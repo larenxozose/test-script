@@ -30,7 +30,8 @@ local Settings = {
     FOVAim = {
         Enabled = false,
         TargetPart = "Head",
-        Smoothness = 0 -- Мгновенное наведение
+        FOV = 60, -- Добавлено для FOV Aim
+        Smoothness = 0
     }
 }
 
@@ -261,7 +262,8 @@ local function CreateCS2Menu()
     CreateSlider("FOV Size", UDim2.new(0, 0, 0, 40), "SilentAim", "FOV", 10, 200)
     CreateSlider("Hit Chance", UDim2.new(0, 0, 0, 100), "SilentAim", "HitChance", 0, 100)
     CreateToggle("Visible Check", UDim2.new(0, 0, 0, 160), "SilentAim", "VisibleCheck")
-    CreateToggle("FOV Aim (PKM)", UDim2.new(0, 0, 0, 200), "FOVAim", "Enabled")
+    CreateToggle("FOV Aim (ПКМ)", UDim2.new(0, 0, 0, 200), "FOVAim", "Enabled")
+    CreateSlider("FOV Aim Size", UDim2.new(0, 0, 0, 240), "FOVAim", "FOV", 10, 200)
 
     local VisualsTab = Instance.new("Frame")
     VisualsTab.Size = UDim2.new(1, 0, 1, 0)
@@ -302,12 +304,14 @@ local function CreateCS2Menu()
 end
 
 -- Логика Silent Aim
-local function GetClosestTarget()
-    if not Settings.SilentAim.Enabled then return nil end
-    if math.random(1, 100) > Settings.SilentAim.HitChance then return nil end
+local function GetClosestTarget(fov)
+    if not (Settings.SilentAim.Enabled or Settings.FOVAim.Enabled) then return nil end
+    if Settings.SilentAim.Enabled and math.random(1, 100) > Settings.SilentAim.HitChance then return nil end
 
     local mousePos = UIS:GetMouseLocation()
-    local closest = {Player = nil, Distance = Settings.SilentAim.FOV}
+    local closest = {Player = nil, Distance = fov or Settings.SilentAim.FOV}
+
+    print("Ищем ближайшую цель...")
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
@@ -315,6 +319,8 @@ local function GetClosestTarget()
         
         local targetPart = player.Character:FindFirstChild(Settings.SilentAim.TargetPart)
         if not targetPart then continue end
+
+        print("Проверяем игрока: " .. player.Name)
 
         if Settings.SilentAim.VisibleCheck then
             local raycastParams = RaycastParams.new()
@@ -343,6 +349,12 @@ local function GetClosestTarget()
         end
     end
 
+    if closest.Player then
+        print("Найдена ближайшая цель: " .. closest.Player.Name)
+    else
+        print("Цель не найдена")
+    end
+
     return closest.Player and closest
 end
 
@@ -351,7 +363,7 @@ local function FOVAim()
     if not Settings.FOVAim.Enabled then return end
     if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
 
-    local closest = GetClosestTarget()
+    local closest = GetClosestTarget(Settings.FOVAim.FOV)
     if closest then
         local targetPos = closest.Part.Position
         local cameraCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
@@ -370,7 +382,7 @@ FOVCircle.Transparency = 1
 local function UpdateFOVCircle()
     local mousePos = UIS:GetMouseLocation()
     FOVCircle.Position = mousePos
-    FOVCircle.Radius = Settings.SilentAim.FOV
+    FOVCircle.Radius = Settings.FOVAim.Enabled and Settings.FOVAim.FOV or Settings.SilentAim.FOV
     FOVCircle.Visible = Settings.Visuals.FOVCircle and (Settings.SilentAim.Enabled or Settings.FOVAim.Enabled)
 end
 
@@ -378,6 +390,7 @@ end
 local ESPDrawings = {}
 
 local function UpdateESP()
+    print("Обновление ESP...")
     if Settings.Visuals.ESP then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
@@ -431,13 +444,13 @@ local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     
-    if Settings.SilentAim.Enabled and method == "Raycast" then
-        local args = {...}
-        local targetData = GetClosestTarget()
+    if Settings.SilentAim.Enabled and method == "FindPartOnRay" then
+        print("FindPartOnRay вызван")
+        local targetData = GetClosestTarget(Settings.SilentAim.FOV)
         if targetData then
-            local origin = args[1]
-            local direction = (targetData.Part.Position - origin).Unit * 1000
-            return oldNamecall(self, origin, direction, args[3])
+            local origin = self == WS and (...) or self
+            local direction = (targetData.Part.Position - origin).Unit
+            return oldNamecall(self, origin, direction * 1000, ...)
         end
     end
     
