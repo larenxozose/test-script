@@ -30,7 +30,7 @@ local Settings = {
     FOVAim = {
         Enabled = false,
         TargetPart = "Head",
-        FOV = 60, -- Добавлено для FOV Aim
+        FOV = 60,
         Smoothness = 0
     }
 }
@@ -290,14 +290,14 @@ local function CreateCS2Menu()
         else
             MainFrame.Size = UDim2.new(0, 350, 0, 400)
             MinimizeButton.Text = "-"
-        end
+        end)
     end)
 
     UIS.InputBegan:Connect(function(input)
         if input.KeyCode == Settings.MenuKey then
             Settings.MenuVisible = not Settings.MenuVisible
             MainFrame.Visible = Settings.MenuVisible
-        end
+        end)
     end)
 
     return MainGui
@@ -311,16 +311,12 @@ local function GetClosestTarget(fov)
     local mousePos = UIS:GetMouseLocation()
     local closest = {Player = nil, Distance = fov or Settings.SilentAim.FOV}
 
-    print("Ищем ближайшую цель...")
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
         if not player.Character then continue end
         
         local targetPart = player.Character:FindFirstChild(Settings.SilentAim.TargetPart)
         if not targetPart then continue end
-
-        print("Проверяем игрока: " .. player.Name)
 
         if Settings.SilentAim.VisibleCheck then
             local raycastParams = RaycastParams.new()
@@ -347,12 +343,6 @@ local function GetClosestTarget(fov)
                 closest.Part = targetPart
             end
         end
-    end
-
-    if closest.Player then
-        print("Найдена ближайшая цель: " .. closest.Player.Name)
-    else
-        print("Цель не найдена")
     end
 
     return closest.Player and closest
@@ -390,7 +380,6 @@ end
 local ESPDrawings = {}
 
 local function UpdateESP()
-    print("Обновление ESP...")
     if Settings.Visuals.ESP then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
@@ -443,17 +432,24 @@ end)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
-    
-    if Settings.SilentAim.Enabled and method == "FindPartOnRay" then
-        print("FindPartOnRay вызван")
+    if Settings.SilentAim.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
         local targetData = GetClosestTarget(Settings.SilentAim.FOV)
         if targetData then
-            local origin = self == WS and (...) or self
-            local direction = (targetData.Part.Position - origin).Unit
-            return oldNamecall(self, origin, direction * 1000, ...)
+            if method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" then
+                local ray = select(1, ...)
+                local ignoreList = select(2, ...)
+                local newDirection = (targetData.Part.Position - ray.Origin).Unit * ray.Direction.Magnitude
+                local newRay = Ray.new(ray.Origin, newDirection)
+                return oldNamecall(self, newRay, ignoreList)
+            elseif method == "Raycast" then
+                local origin = select(1, ...)
+                local direction = select(2, ...)
+                local params = select(3, ...)
+                local newDirection = (targetData.Part.Position - origin).Unit * direction.Magnitude
+                return oldNamecall(self, origin, newDirection, params)
+            end
         end
     end
-    
     return oldNamecall(self, ...)
 end)
 
