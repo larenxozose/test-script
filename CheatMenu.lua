@@ -4,6 +4,7 @@ local RS = game:GetService("RunService")
 local CG = game:GetService("CoreGui")
 local WS = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
+local Camera = WS.CurrentCamera
 
 -- Настройки читов
 local Settings = {
@@ -21,9 +22,15 @@ local Settings = {
     
     Visuals = {
         FOVCircle = true,
-        ESP = false, -- Добавлено для ESP
+        ESP = false,
         CircleColor = Color3.fromRGB(0, 255, 255),
         CircleThickness = 1
+    },
+    
+    FOVAim = {
+        Enabled = false,
+        TargetPart = "Head",
+        Smoothness = 0 -- Мгновенное наведение
     }
 }
 
@@ -254,6 +261,7 @@ local function CreateCS2Menu()
     CreateSlider("FOV Size", UDim2.new(0, 0, 0, 40), "SilentAim", "FOV", 10, 200)
     CreateSlider("Hit Chance", UDim2.new(0, 0, 0, 100), "SilentAim", "HitChance", 0, 100)
     CreateToggle("Visible Check", UDim2.new(0, 0, 0, 160), "SilentAim", "VisibleCheck")
+    CreateToggle("FOV Aim (PKM)", UDim2.new(0, 0, 0, 200), "FOVAim", "Enabled")
 
     local VisualsTab = Instance.new("Frame")
     VisualsTab.Size = UDim2.new(1, 0, 1, 0)
@@ -262,7 +270,7 @@ local function CreateCS2Menu()
     VisualsTab.Parent = ContentFrame
 
     CreateToggle("FOV Circle", UDim2.new(0, 0, 0, 0), "Visuals", "FOVCircle")
-    CreateToggle("ESP", UDim2.new(0, 0, 0, 40), "Visuals", "ESP") -- Добавлен переключатель ESP
+    CreateToggle("ESP", UDim2.new(0, 0, 0, 40), "Visuals", "ESP")
 
     for i, tabData in ipairs(Tabs) do
         local TabButton = CreateTabButton(tabData, i)
@@ -298,7 +306,6 @@ local function GetClosestTarget()
     if not Settings.SilentAim.Enabled then return nil end
     if math.random(1, 100) > Settings.SilentAim.HitChance then return nil end
 
-    local camera = WS.CurrentCamera
     local mousePos = UIS:GetMouseLocation()
     local closest = {Player = nil, Distance = Settings.SilentAim.FOV}
 
@@ -311,21 +318,21 @@ local function GetClosestTarget()
 
         if Settings.SilentAim.VisibleCheck then
             local raycastParams = RaycastParams.new()
-            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, player.Character}
+            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
             raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
             
             local raycastResult = WS:Raycast(
-                camera.CFrame.Position,
-                (targetPart.Position - camera.CFrame.Position).Unit * 1000,
+                Camera.CFrame.Position,
+                (targetPart.Position - Camera.CFrame.Position).Unit * 1000,
                 raycastParams
             )
             
-            if raycastResult and raycastResult.Instance ~= targetPart then
+            if raycastResult and not raycastResult.Instance:IsDescendantOf(player.Character) then
                 continue
             end
         end
 
-        local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
         if onScreen then
             local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
             if distance < closest.Distance then
@@ -337,6 +344,19 @@ local function GetClosestTarget()
     end
 
     return closest.Player and closest
+end
+
+-- FOV Aim (Мгновенное наведение при ПКМ)
+local function FOVAim()
+    if not Settings.FOVAim.Enabled then return end
+    if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
+
+    local closest = GetClosestTarget()
+    if closest then
+        local targetPos = closest.Part.Position
+        local cameraCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+        Camera.CFrame = cameraCFrame
+    end
 end
 
 -- FOV Circle
@@ -351,7 +371,7 @@ local function UpdateFOVCircle()
     local mousePos = UIS:GetMouseLocation()
     FOVCircle.Position = mousePos
     FOVCircle.Radius = Settings.SilentAim.FOV
-    FOVCircle.Visible = Settings.Visuals.FOVCircle and Settings.SilentAim.Enabled
+    FOVCircle.Visible = Settings.Visuals.FOVCircle and (Settings.SilentAim.Enabled or Settings.FOVAim.Enabled)
 end
 
 -- ESP
@@ -359,46 +379,28 @@ local ESPDrawings = {}
 
 local function UpdateESP()
     if Settings.Visuals.ESP then
-        local camera = WS.CurrentCamera
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local char = player.Character
-                local cf, size = char:GetBoundingBox()
-                local corners = {
-                    cf * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2).Position,
-                    cf * CFrame.new(-size.X/2, -size.Y/2, size.Z/2).Position,
-                    cf * CFrame.new(-size.X/2, size.Y/2, -size.Z/2).Position,
-                    cf * CFrame.new(-size.X/2, size.Y/2, size.Z/2).Position,
-                    cf * CFrame.new(size.X/2, -size.Y/2, -size.Z/2).Position,
-                    cf * CFrame.new(size.X/2, -size.Y/2, size.Z/2).Position,
-                    cf * CFrame.new(size.X/2, size.Y/2, -size.Z/2).Position,
-                    cf * CFrame.new(size.X/2, size.Y/2, size.Z/2).Position,
-                }
-                local screenCorners = {}
-                for _, pos in ipairs(corners) do
-                    local screenPos, _ = camera:WorldToViewportPoint(pos)
-                    table.insert(screenCorners, Vector2.new(screenPos.X, screenPos.Y))
-                end
-                if #screenCorners > 0 then
-                    local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
-                    for _, pos in ipairs(screenCorners) do
-                        minX = math.min(minX, pos.X)
-                        minY = math.min(minY, pos.Y)
-                        maxX = math.max(maxX, pos.X)
-                        maxY = math.max(maxY, pos.Y)
-                    end
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if not rootPart then continue end
+
+                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    local height = 70
+                    local width = 30
                     if not ESPDrawings[player] then
                         ESPDrawings[player] = {
                             Box = Drawing.new("Square")
                         }
                         ESPDrawings[player].Box.Filled = false
                         ESPDrawings[player].Box.Thickness = 1
-                        ESPDrawings[player].Box.Color = Color3.new(1, 0, 0) -- Красный цвет
+                        ESPDrawings[player].Box.Color = Color3.new(1, 0, 0)
                     end
                     local box = ESPDrawings[player].Box
                     box.Visible = true
-                    box.Position = Vector2.new(minX, minY)
-                    box.Size = Vector2.new(maxX - minX, maxY - minY)
+                    box.Position = Vector2.new(screenPos.X - width/2, screenPos.Y - height/2)
+                    box.Size = Vector2.new(width, height)
                 else
                     if ESPDrawings[player] then
                         ESPDrawings[player].Box.Visible = false
@@ -429,12 +431,13 @@ local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     
-    if Settings.SilentAim.Enabled and method == "FindPartOnRay" then
+    if Settings.SilentAim.Enabled and method == "Raycast" then
+        local args = {...}
         local targetData = GetClosestTarget()
         if targetData then
-            local origin = self == WS and (...) or self
-            local direction = (targetData.Part.Position - origin).Unit
-            return oldNamecall(self, origin, direction * 1000, ...)
+            local origin = args[1]
+            local direction = (targetData.Part.Position - origin).Unit * 1000
+            return oldNamecall(self, origin, direction, args[3])
         end
     end
     
@@ -446,6 +449,7 @@ CreateCS2Menu()
 RS.RenderStepped:Connect(function()
     UpdateFOVCircle()
     UpdateESP()
+    FOVAim()
 end)
 
 print("Чит успешно загружен! Нажмите RightControl для открытия меню")
