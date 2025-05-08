@@ -1,210 +1,274 @@
--- Исправленный полный скрипт
+-- Полный скрипт читов в стиле CS:GO с Silent Aim и круглым FOV
 
 -- Безопасное получение сервисов
-local function GetService(serviceName)
-    local success, service = pcall(function()
-        return game:GetService(serviceName)
-    end)
-    return success and service or nil
+local function GetService(name)
+    local success, service = pcall(function() return game:GetService(name) end)
+    return success and service or error("Не удалось получить сервис: "..name)
 end
 
-local UserInputService = GetService("UserInputService")
+local UIS = GetService("UserInputService")
 local Players = GetService("Players")
-local RunService = GetService("RunService")
-
-if not (UserInputService and Players and RunService) then
-    print("Ошибка: Не удалось получить необходимые сервисы")
-    return
-end
-
+local RS = GetService("RunService")
+local CG = GetService("CoreGui")
+local WS = GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    print("Ошибка: LocalPlayer не найден")
-    return
-end
 
--- Настройки чита
+-- Настройки читов
 local Settings = {
-    ESPEnabled = false,
-    SilentAimEnabled = false,
-    SilentAimFOV = 50,
-    MenuVisible = true
+    MenuKey = Enum.KeyCode.Insert,
+    SilentAim = {
+        Enabled = false,
+        FOV = 60,
+        HitChance = 100,
+        TargetPart = "Head",
+        VisibleCheck = true
+    },
+    Visuals = {
+        FOVCircle = true,
+        CircleColor = Color3.fromRGB(255, 255, 255),
+        CircleThickness = 1
+    }
 }
 
--- Создание GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = GetService("CoreGui") or game:GetService("CoreGui")
-ScreenGui.IgnoreGuiInset = true
+-- Кэш объектов
+local DrawingCache = {}
+local Connections = {}
 
-local MenuFrame = Instance.new("Frame")
-MenuFrame.Size = UDim2.new(0, 200, 0, 300)
-MenuFrame.Position = UDim2.new(0, 10, 0, 10)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MenuFrame.BorderSizePixel = 0
-MenuFrame.Visible = Settings.MenuVisible
-MenuFrame.Parent = ScreenGui
-
--- Функции создания элементов GUI
-local function CreateLabel(text, position, parent)
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0, 180, 0, 30)
-    Label.Position = position
-    Label.BackgroundTransparency = 1
-    Label.Text = text
-    Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.TextSize = 14
-    Label.Font = Enum.Font.SourceSans
-    Label.Parent = parent
-end
-
-local function CreateButton(text, position, callback, parent)
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 180, 0, 30)
-    Button.Position = position
-    Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    Button.Text = text
-    Button.TextColor3 = Color3.new(1, 1, 1)
-    Button.TextSize = 14
-    Button.Font = Enum.Font.SourceSans
-    Button.Parent = parent
-    Button.MouseButton1Click:Connect(callback)
-end
-
-local function CreateSlider(text, position, min, max, callback, parent)
-    local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(0, 180, 0, 50)
-    SliderFrame.Position = position
-    SliderFrame.BackgroundTransparency = 1
-    SliderFrame.Parent = parent
-
-    local Label = Instance.new("TextLabel")
-    Label.Text = text
-    Label.Size = UDim2.new(1, 0, 0, 20)
-    Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.Parent = SliderFrame
-
-    local Track = Instance.new("Frame")
-    Track.Size = UDim2.new(1, 0, 0, 10)
-    Track.Position = UDim2.new(0, 0, 0, 30)
-    Track.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    Track.Parent = SliderFrame
-
-    local Fill = Instance.new("Frame")
-    Fill.Size = UDim2.new(0.5, 0, 1, 0)
-    Fill.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-    Fill.Parent = Track
-
-    local dragging = false
-    Track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local percent = (input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X
-            percent = math.clamp(percent, 0, 1)
-            Fill.Size = UDim2.new(percent, 0, 1, 0)
-            callback(math.floor(min + (max - min) * percent))
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-end
-
--- Инициализация меню
-CreateLabel("Cheat Menu", UDim2.new(0, 10, 0, 10), MenuFrame)
-
-CreateButton("ESP: OFF", UDim2.new(0, 10, 0, 50), function()
-    Settings.ESPEnabled = not Settings.ESPEnabled
-    MenuFrame:FindFirstChildWhichIsA("TextButton").Text = "ESP: " .. (Settings.ESPEnabled and "ON" or "OFF")
-end, MenuFrame)
-
-CreateButton("Silent Aim: OFF", UDim2.new(0, 10, 0, 90), function()
-    Settings.SilentAimEnabled = not Settings.SilentAimEnabled
-    MenuFrame:FindFirstChildWhichIsA("TextButton", true).Text = "Silent Aim: " .. (Settings.SilentAimEnabled and "ON" or "OFF")
-end, MenuFrame)
-
-CreateSlider("FOV: 50", UDim2.new(0, 10, 0, 130), 10, 100, function(value)
-    Settings.SilentAimFOV = value
-    MenuFrame:FindFirstChildWhichIsA("TextLabel", true).Text = "FOV: " .. value
-end, MenuFrame)
-
--- Управление видимостью меню
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        Settings.MenuVisible = not Settings.MenuVisible
-        MenuFrame.Visible = Settings.MenuVisible
+-- Функции для рисования
+local function CreateDrawing(type, props)
+    local drawing = Drawing.new(type)
+    for prop, value in pairs(props) do
+        drawing[prop] = value
     end
-end)
-
--- Система ESP
-local Highlights = {}
-
-local function UpdateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-
-        if Settings.ESPEnabled and player.Character then
-            if not Highlights[player] then
-                local highlight = Instance.new("Highlight")
-                highlight.Adornee = player.Character
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.Parent = player.Character
-                Highlights[player] = highlight
-            end
-        else
-            if Highlights[player] then
-                Highlights[player]:Destroy()
-                Highlights[player] = nil
-            end
-        end
-    end
+    table.insert(DrawingCache, drawing)
+    return drawing
 end
 
-Players.PlayerAdded:Connect(UpdateESP)
-Players.PlayerRemoving:Connect(UpdateESP)
-LocalPlayer.CharacterAdded:Connect(UpdateESP)
+-- Создание FOV круга
+local FOVCircle = CreateDrawing("Circle", {
+    Visible = Settings.Visuals.FOVCircle,
+    Color = Settings.Visuals.CircleColor,
+    Thickness = Settings.Visuals.CircleThickness,
+    Filled = false
+})
 
--- Система Silent Aim
-RunService.RenderStepped:Connect(function()
-    if not Settings.SilentAimEnabled then return end
-    
-    local camera = workspace.CurrentCamera
-    local mousePos = UserInputService:GetMouseLocation()
-    
-    local closest = {
-        Player = nil,
-        Distance = Settings.SilentAimFOV
-    }
+-- Обновление позиции FOV круга
+local function UpdateFOVCircle()
+    if not FOVCircle then return end
+    local mousePos = UIS:GetMouseLocation()
+    FOVCircle.Position = mousePos
+    FOVCircle.Radius = Settings.SilentAim.FOV
+    FOVCircle.Visible = Settings.Visuals.FOVCircle and Settings.SilentAim.Enabled
+end
+
+-- Silent Aim логика
+local function GetClosestTarget()
+    if not Settings.SilentAim.Enabled then return nil end
+    if math.random(1, 100) > Settings.SilentAim.HitChance then return nil end
+
+    local camera = WS.CurrentCamera
+    local mousePos = UIS:GetMouseLocation()
+    local closest = {Player = nil, Distance = Settings.SilentAim.FOV}
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-        if not (player.Character and player.Character:FindFirstChild("Head")) then continue end
-
-        local headPos = player.Character.Head.Position
-        local screenPos, visible = camera:WorldToViewportPoint(headPos)
+        if not player.Character then continue end
         
-        if visible then
+        local targetPart = player.Character:FindFirstChild(Settings.SilentAim.TargetPart)
+        if not targetPart then continue end
+
+        -- Проверка на видимость
+        if Settings.SilentAim.VisibleCheck then
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, player.Character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            
+            local raycastResult = WS:Raycast(
+                camera.CFrame.Position,
+                (targetPart.Position - camera.CFrame.Position).Unit * 1000,
+                raycastParams
+            )
+            
+            if raycastResult and raycastResult.Instance ~= targetPart then
+                continue
+            end
+        end
+
+        local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+        if onScreen then
             local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
             if distance < closest.Distance then
                 closest.Player = player
                 closest.Distance = distance
+                closest.Part = targetPart
             end
         end
     end
 
-    if closest.Player then
-        -- Здесь можно добавить логику прицеливания
-        print("[AIM] Target: " .. closest.Player.Name)
+    return closest.Player and closest
+end
+
+-- Хук для стрельбы
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    
+    if Settings.SilentAim.Enabled and method == "FindPartOnRay" then
+        local targetData = GetClosestTarget()
+        if targetData then
+            local origin = self == WS and (...) or self
+            local direction = (targetData.Part.Position - origin).Unit
+            return oldNamecall(self, origin, direction * 1000, ...)
+        end
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+-- GUI меню в стиле CS:GO
+local Menu = {
+    Open = false,
+    Main = Instance.new("ScreenGui"),
+    Tabs = {}
+}
+
+Menu.Main.Name = "CSGOCheatMenu"
+Menu.Main.Parent = CG
+
+local function CreateTab(name)
+    local tab = {
+        Frame = Instance.new("Frame"),
+        Name = name,
+        Elements = {}
+    }
+    
+    tab.Frame.Size = UDim2.new(0.2, 0, 0.5, 0)
+    tab.Frame.Position = UDim2.new(0.01, 0, 0.25, 0)
+    tab.Frame.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
+    tab.Frame.BorderSizePixel = 0
+    tab.Frame.Visible = false
+    tab.Frame.Parent = Menu.Main
+    
+    local title = Instance.new("TextLabel")
+    title.Text = name
+    title.Size = UDim2.new(1, 0, 0.1, 0)
+    title.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.SourceSansBold
+    title.Parent = tab.Frame
+    
+    table.insert(Menu.Tabs, tab)
+    return tab
+end
+
+local function CreateToggle(tab, text, setting, callback)
+    local toggle = Instance.new("TextButton")
+    toggle.Text = text .. ": " .. (Settings[setting[1]][setting[2]] and "ON" or "OFF")
+    toggle.Size = UDim2.new(0.9, 0, 0.08, 0)
+    toggle.Position = UDim2.new(0.05, 0, 0.15 + (#tab.Elements * 0.09), 0)
+    toggle.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
+    toggle.TextColor3 = Color3.new(1, 1, 1)
+    toggle.Parent = tab.Frame
+    
+    toggle.MouseButton1Click:Connect(function()
+        Settings[setting[1]][setting[2]] = not Settings[setting[1]][setting[2]]
+        toggle.Text = text .. ": " .. (Settings[setting[1]][setting[2]] and "ON" or "OFF")
+        if callback then callback() end
+    end)
+    
+    table.insert(tab.Elements, toggle)
+end
+
+local function CreateSlider(tab, text, setting, min, max, callback)
+    local slider = {
+        Frame = Instance.new("Frame"),
+        Value = Settings[setting[1]][setting[2]]
+    }
+    
+    slider.Frame.Size = UDim2.new(0.9, 0, 0.1, 0)
+    slider.Frame.Position = UDim2.new(0.05, 0, 0.15 + (#tab.Elements * 0.11), 0)
+    slider.Frame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
+    slider.Frame.Parent = tab.Frame
+    
+    local label = Instance.new("TextLabel")
+    label.Text = text .. ": " .. slider.Value
+    label.Size = UDim2.new(1, 0, 0.5, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Parent = slider.Frame
+    
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(1, 0, 0.3, 0)
+    track.Position = UDim2.new(0, 0, 0.6, 0)
+    track.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+    track.Parent = slider.Frame
+    
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((slider.Value - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    fill.Parent = track
+    
+    local dragging = false
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local percent = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
+            percent = math.clamp(percent, 0, 1)
+            fill.Size = UDim2.new(percent, 0, 1, 0)
+            slider.Value = math.floor(min + (max - min) * percent)
+            label.Text = text .. ": " .. slider.Value
+            Settings[setting[1]][setting[2]] = slider.Value
+            if callback then callback(slider.Value) end
+        end
+    end)
+    
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    table.insert(tab.Elements, slider)
+end
+
+-- Создание вкладок и элементов
+local aimTab = CreateTab("Aimbot")
+CreateToggle(aimTab, "Silent Aim", {"SilentAim", "Enabled"}, UpdateFOVCircle)
+CreateSlider(aimTab, "FOV", {"SilentAim", "FOV"}, 10, 200, UpdateFOVCircle)
+CreateSlider(aimTab, "Hit Chance", {"SilentAim", "HitChance"}, 0, 100)
+CreateToggle(aimTab, "Visible Check", {"SilentAim", "VisibleCheck"})
+
+local visualsTab = CreateTab("Visuals")
+CreateToggle(visualsTab, "FOV Circle", {"Visuals", "FOVCircle"}, UpdateFOVCircle)
+
+-- Управление меню
+Menu.Tabs[1].Frame.Visible = true
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Settings.MenuKey then
+        Menu.Open = not Menu.Open
+        Menu.Main.Enabled = Menu.Open
     end
 end)
 
--- Первоначальное обновление
-UpdateESP()
-print("Скрипт успешно запущен!")
+-- Основной цикл
+RS.RenderStepped:Connect(function()
+    UpdateFOVCircle()
+end)
+
+-- Очистка
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        for _, drawing in pairs(DrawingCache) do
+            drawing:Remove()
+        end
+        Menu.Main:Destroy()
+    end
+end)
+
+print("Чит успешно загружен! Нажмите "..tostring(Settings.MenuKey).." для открытия меню")
