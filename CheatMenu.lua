@@ -1,10 +1,25 @@
--- Основной скрипт для меню чита
+-- Попытка безопасно получить сервисы
 local success, UserInputService = pcall(game.GetService, game, "UserInputService")
-local success2, Players = pcall(game.GetService, game, "Players")
-local success3, RunService = pcall(game.GetService, game, "RunService")
-local LocalPlayer = success2 and Players and Players.LocalPlayer
+if not success or not UserInputService then
+    print("Ошибка: Не удалось получить UserInputService")
+    return
+end
 
-if not (success and success2 and success3) or not LocalPlayer then
+local success2, Players = pcall(game.GetService, game, "Players")
+if not success2 or not Players then
+    print("Ошибка: Не удалось получить Players")
+    return
+end
+
+local success3, RunService = pcall(game.GetService, game, "RunService")
+if not success3 or not RunService then
+    print("Ошибка: Не удалось получить RunService")
+    return
+end
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    print("Ошибка: LocalPlayer не найден")
     return
 end
 
@@ -18,7 +33,13 @@ local Settings = {
 
 -- Создание GUI для меню
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
+local success4, CoreGui = pcall(game.GetService, game, "CoreGui")
+if success4 and CoreGui then
+    ScreenGui.Parent = CoreGui
+else
+    print("Ошибка: Не удалось получить CoreGui, GUI не будет отображаться")
+    return
+end
 ScreenGui.IgnoreGuiInset = true
 
 local MenuFrame = Instance.new("Frame")
@@ -30,6 +51,7 @@ MenuFrame.Parent = ScreenGui
 
 -- Функция для создания текста
 local function CreateLabel(text, position, parent)
+    if not parent then return end
     local Label = Instance.new("TextLabel")
     Label.Size = UDim2.new(0, 180, 0, 30)
     Label.Position = position
@@ -43,6 +65,7 @@ end
 
 -- Функция для создания кнопки
 local function CreateButton(text, position, callback, parent)
+    if not parent then return end
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(0, 180, 0, 30)
     Button.Position = position
@@ -57,6 +80,7 @@ end
 
 -- Функция для создания слайдера
 local function CreateSlider(text, position, min, max, callback, parent)
+    if not parent then return end
     local SliderFrame = Instance.new("Frame")
     SliderFrame.Size = UDim2.new(0, 180, 0, 50)
     SliderFrame.Position = position
@@ -115,17 +139,26 @@ end
 CreateLabel("Cheat Menu", UDim2.new(0, 10, 0, 10), MenuFrame)
 CreateButton("Toggle ESP: OFF", UDim2.new(0, 10, 0, 50), function()
     Settings.ESPEnabled = not Settings.ESPEnabled
-    MenuFrame:FindFirstChildWhichIsA("TextButton").Text = "Toggle ESP: " .. (Settings.ESPEnabled and "ON" or "OFF")
+    local button = MenuFrame:FindFirstChildWhichIsA("TextButton")
+    if button then
+        button.Text = "Toggle ESP: " .. (Settings.ESPEnabled and "ON" or "OFF")
+    end
 end, MenuFrame)
 
 CreateButton("Toggle Silent Aim: OFF", UDim2.new(0, 10, 0, 90), function()
     Settings.SilentAimEnabled = not Settings.SilentAimEnabled
-    MenuFrame:FindFirstChildWhichIsA("TextButton", true).Text = "Toggle Silent Aim: " .. (Settings.SilentAimEnabled and "ON" or "OFF")
+    local button = MenuFrame:FindFirstChildWhichIsA("TextButton", true)
+    if button then
+        button.Text = "Toggle Silent Aim: " .. (Settings.SilentAimEnabled and "ON" or "OFF")
+    end
 end, MenuFrame)
 
 CreateSlider("Silent Aim FOV: 50", UDim2.new(0, 10, 0, 130), 10, 100, function(value)
     Settings.SilentAimFOV = math.floor(value)
-    MenuFrame:FindFirstChildWhichIsA("TextLabel", true).Text = "Silent Aim FOV: " .. Settings.SilentAimFOV
+    local label = MenuFrame:FindFirstChildWhichIsA("TextLabel", true)
+    if label then
+        label.Text = "Silent Aim FOV: " .. Settings.SilentAimFOV
+    end
 end, MenuFrame)
 
 -- Скрытие/показ меню по правому Shift
@@ -163,24 +196,38 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
-    player.CharacterAdded:Connect(function()
-        CreateESP(player)
-    end)
     if player.Character then
         CreateESP(player)
     end
-end)
+    player.CharacterAdded:Connect(function()
+        CreateESP(player)
+    end)
+end
 
 -- Реализация Silent Aim
 RunService.RenderStepped:Connect(function()
     if not Settings.SilentAimEnabled then return end
 
+    local success5, workspace = pcall(game.GetService, game, "Workspace")
+    if not success5 or not workspace then
+        print("Ошибка: Не удалось получить Workspace")
+        return
+    end
+
+    local camera = workspace.CurrentCamera
+    if not camera then
+        print("Ошибка: Камера не найдена")
+        return
+    end
+
+    local mousePos = UserInputService:GetMouseLocation()
+    if not mousePos then
+        print("Ошибка: Не удалось получить позицию мыши")
+        return
+    end
+
     local closestPlayer = nil
     local closestDistance = Settings.SilentAimFOV
-    local camera = workspace.CurrentCamera
-    local mousePos = UserInputService:GetMouseLocation()
-
-    if not camera then return end
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer or not player.Character or not player.Character:FindFirstChild("Head") then continue end
@@ -195,9 +242,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Симуляция прицеливания (без прямого управления мышью)
     if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
-        -- Логика Silent Aim: можно модифицировать оружие или камеру
         print("Silent Aim на: " .. closestPlayer.Name)
     end
 end)
