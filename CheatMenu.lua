@@ -1,21 +1,18 @@
--- Полный скрипт читов в стиле CS:GO с Silent Aim и круглым FOV
+-- Полный скрипт с CS2 стилем меню и Silent Aim
 
--- Безопасное получение сервисов
-local function GetService(name)
-    local success, service = pcall(function() return game:GetService(name) end)
-    return success and service or error("Не удалось получить сервис: "..name)
-end
-
-local UIS = GetService("UserInputService")
-local Players = GetService("Players")
-local RS = GetService("RunService")
-local CG = GetService("CoreGui")
-local WS = GetService("Workspace")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+local CG = game:GetService("CoreGui")
+local WS = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 -- Настройки читов
 local Settings = {
-    MenuKey = Enum.KeyCode.Insert,
+    MenuKey = Enum.KeyCode.RightControl,
+    MenuVisible = false,
+    MenuMinimized = false,
+    
     SilentAim = {
         Enabled = false,
         FOV = 60,
@@ -23,42 +20,290 @@ local Settings = {
         TargetPart = "Head",
         VisibleCheck = true
     },
+    
     Visuals = {
         FOVCircle = true,
-        CircleColor = Color3.fromRGB(255, 255, 255),
+        CircleColor = Color3.fromRGB(0, 255, 255),
         CircleThickness = 1
     }
 }
 
--- Кэш объектов
-local DrawingCache = {}
-local Connections = {}
+-- Создание красивого меню в стиле CS2
+local function CreateCS2Menu()
+    local MainGui = Instance.new("ScreenGui")
+    MainGui.Name = "CS2CheatMenu"
+    MainGui.Parent = CG
+    MainGui.ResetOnSpawn = false
 
--- Функции для рисования
-local function CreateDrawing(type, props)
-    local drawing = Drawing.new(type)
-    for prop, value in pairs(props) do
-        drawing[prop] = value
+    -- Основной контейнер
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 350, 0, 400)
+    MainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Visible = Settings.MenuVisible
+    MainFrame.Parent = MainGui
+
+    -- Закругление углов
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = MainFrame
+
+    -- Градиентный заголовок
+    local Header = Instance.new("Frame")
+    Header.Name = "Header"
+    Header.Size = UDim2.new(1, 0, 0, 40)
+    Header.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    Header.BorderSizePixel = 0
+    Header.Parent = MainFrame
+
+    local HeaderCorner = Instance.new("UICorner")
+    HeaderCorner.CornerRadius = UDim.new(0, 8)
+    HeaderCorner.Parent = Header
+
+    local UIGradient = Instance.new("UIGradient")
+    UIGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 150, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
+    })
+    UIGradient.Rotation = 90
+    UIGradient.Parent = Header
+
+    local Title = Instance.new("TextLabel")
+    Title.Text = "CS2 CHEAT MENU"
+    Title.Size = UDim2.new(1, 0, 1, 0)
+    Title.BackgroundTransparency = 1
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 16
+    Title.Parent = Header
+
+    -- Кнопка сворачивания
+    local MinimizeButton = Instance.new("TextButton")
+    MinimizeButton.Text = "-"
+    MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    MinimizeButton.Position = UDim2.new(1, -35, 0.5, -15)
+    MinimizeButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    MinimizeButton.TextColor3 = Color3.new(1, 1, 1)
+    MinimizeButton.Font = Enum.Font.GothamBold
+    MinimizeButton.TextSize = 18
+    MinimizeButton.Parent = Header
+
+    local MinimizeCorner = Instance.new("UICorner")
+    MinimizeCorner.CornerRadius = UDim.new(0, 6)
+    MinimizeCorner.Parent = MinimizeButton
+
+    -- Контейнер для вкладок
+    local TabContainer = Instance.new("Frame")
+    TabContainer.Name = "TabContainer"
+    TabContainer.Size = UDim2.new(1, 0, 0, 40)
+    TabContainer.Position = UDim2.new(0, 0, 0, 40)
+    TabContainer.BackgroundTransparency = 1
+    TabContainer.Parent = MainFrame
+
+    -- Контейнер для контента
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Name = "ContentFrame"
+    ContentFrame.Size = UDim2.new(1, -20, 1, -100)
+    ContentFrame.Position = UDim2.new(0, 10, 0, 90)
+    ContentFrame.BackgroundTransparency = 1
+    ContentFrame.Parent = MainFrame
+
+    -- Создаем вкладки
+    local Tabs = {
+        {Name = "AIMBOT", Icon = "🎯"},
+        {Name = "VISUALS", Icon = "👁️"},
+        {Name = "MISC", Icon = "⚙️"}
+    }
+
+    local function CreateTabButton(tabData, index)
+        local TabButton = Instance.new("TextButton")
+        TabButton.Text = tabData.Icon .. " " .. tabData.Name
+        TabButton.Size = UDim2.new(0.33, -5, 1, 0)
+        TabButton.Position = UDim2.new(0.33 * (index - 1), 5, 0, 0)
+        TabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        TabButton.TextColor3 = Color3.new(1, 1, 1)
+        TabButton.Font = Enum.Font.GothamMedium
+        TabButton.TextSize = 12
+        TabButton.Parent = TabContainer
+        
+        local TabCorner = Instance.new("UICorner")
+        TabCorner.CornerRadius = UDim.new(0, 6)
+        TabCorner.Parent = TabButton
+        
+        return TabButton
     end
-    table.insert(DrawingCache, drawing)
-    return drawing
-end
 
--- Создание FOV круга
-local FOVCircle = CreateDrawing("Circle", {
-    Visible = Settings.Visuals.FOVCircle,
-    Color = Settings.Visuals.CircleColor,
-    Thickness = Settings.Visuals.CircleThickness,
-    Filled = false
-})
+    -- Функция для создания переключателя
+    local function CreateToggle(name, position, settingTable, settingKey)
+        local ToggleFrame = Instance.new("Frame")
+        ToggleFrame.Size = UDim2.new(1, 0, 0, 30)
+        ToggleFrame.Position = position
+        ToggleFrame.BackgroundTransparency = 1
+        ToggleFrame.Parent = ContentFrame
 
--- Обновление позиции FOV круга
-local function UpdateFOVCircle()
-    if not FOVCircle then return end
-    local mousePos = UIS:GetMouseLocation()
-    FOVCircle.Position = mousePos
-    FOVCircle.Radius = Settings.SilentAim.FOV
-    FOVCircle.Visible = Settings.Visuals.FOVCircle and Settings.SilentAim.Enabled
+        local ToggleLabel = Instance.new("TextLabel")
+        ToggleLabel.Text = name
+        ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+        ToggleLabel.BackgroundTransparency = 1
+        ToggleLabel.TextColor3 = Color3.new(1, 1, 1)
+        ToggleLabel.Font = Enum.Font.Gotham
+        ToggleLabel.TextSize = 14
+        ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        ToggleLabel.Parent = ToggleFrame
+
+        local ToggleButton = Instance.new("TextButton")
+        ToggleButton.Text = ""
+        ToggleButton.Size = UDim2.new(0, 50, 0, 25)
+        ToggleButton.Position = UDim2.new(1, -50, 0.5, -12)
+        ToggleButton.BackgroundColor3 = Settings[settingTable][settingKey] and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+        ToggleButton.Parent = ToggleFrame
+
+        local ToggleCorner = Instance.new("UICorner")
+        ToggleCorner.CornerRadius = UDim.new(0, 12)
+        ToggleCorner.Parent = ToggleButton
+
+        local ToggleIndicator = Instance.new("Frame")
+        ToggleIndicator.Size = UDim2.new(0, 21, 0, 21)
+        ToggleIndicator.Position = Settings[settingTable][settingKey] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
+        ToggleIndicator.BackgroundColor3 = Color3.new(1, 1, 1)
+        ToggleIndicator.Parent = ToggleButton
+
+        local IndicatorCorner = Instance.new("UICorner")
+        IndicatorCorner.CornerRadius = UDim.new(0, 10)
+        IndicatorCorner.Parent = ToggleIndicator
+
+        ToggleButton.MouseButton1Click:Connect(function()
+            Settings[settingTable][settingKey] = not Settings[settingTable][settingKey]
+            ToggleButton.BackgroundColor3 = Settings[settingTable][settingKey] and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+            
+            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = game:GetService("TweenService"):Create(
+                ToggleIndicator,
+                tweenInfo,
+                {Position = Settings[settingTable][settingKey] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)}
+            )
+            tween:Play()
+        end)
+
+        return ToggleFrame
+    end
+
+    -- Функция для создания слайдера
+    local function CreateSlider(name, position, settingTable, settingKey, min, max)
+        local SliderFrame = Instance.new("Frame")
+        SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+        SliderFrame.Position = position
+        SliderFrame.BackgroundTransparency = 1
+        SliderFrame.Parent = ContentFrame
+
+        local SliderLabel = Instance.new("TextLabel")
+        SliderLabel.Text = name .. ": " .. Settings[settingTable][settingKey]
+        SliderLabel.Size = UDim2.new(1, 0, 0, 20)
+        SliderLabel.BackgroundTransparency = 1
+        SliderLabel.TextColor3 = Color3.new(1, 1, 1)
+        SliderLabel.Font = Enum.Font.Gotham
+        SliderLabel.TextSize = 14
+        SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+        SliderLabel.Parent = SliderFrame
+
+        local Track = Instance.new("Frame")
+        Track.Size = UDim2.new(1, 0, 0, 5)
+        Track.Position = UDim2.new(0, 0, 0, 30)
+        Track.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        Track.Parent = SliderFrame
+
+        local TrackCorner = Instance.new("UICorner")
+        TrackCorner.CornerRadius = UDim.new(1, 0)
+        TrackCorner.Parent = Track
+
+        local Fill = Instance.new("Frame")
+        Fill.Size = UDim2.new((Settings[settingTable][settingKey] - min) / (max - min), 0, 1, 0)
+        Fill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+        Fill.Parent = Track
+
+        local FillCorner = Instance.new("UICorner")
+        FillCorner.CornerRadius = UDim.new(1, 0)
+        FillCorner.Parent = Fill
+
+        local dragging = false
+
+        Track.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+            end
+        end)
+
+        UIS.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local percent = (input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X
+                percent = math.clamp(percent, 0, 1)
+                Fill.Size = UDim2.new(percent, 0, 1, 0)
+                local value = math.floor(min + (max - min) * percent)
+                Settings[settingTable][settingKey] = value
+                SliderLabel.Text = name .. ": " .. value
+            end
+        end)
+
+        UIS.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+    end
+
+    -- Создаем содержимое вкладок
+    local AimbotTab = Instance.new("Frame")
+    AimbotTab.Size = UDim2.new(1, 0, 1, 0)
+    AimbotTab.BackgroundTransparency = 1
+    AimbotTab.Visible = true
+    AimbotTab.Parent = ContentFrame
+
+    CreateToggle("Silent Aim", UDim2.new(0, 0, 0, 0), "SilentAim", "Enabled")
+    CreateSlider("FOV Size", UDim2.new(0, 0, 0, 40), "SilentAim", "FOV", 10, 200)
+    CreateSlider("Hit Chance", UDim2.new(0, 0, 0, 100), "SilentAim", "HitChance", 0, 100)
+    CreateToggle("Visible Check", UDim2.new(0, 0, 0, 160), "SilentAim", "VisibleCheck")
+
+    local VisualsTab = Instance.new("Frame")
+    VisualsTab.Size = UDim2.new(1, 0, 1, 0)
+    VisualsTab.BackgroundTransparency = 1
+    VisualsTab.Visible = false
+    VisualsTab.Parent = ContentFrame
+
+    CreateToggle("FOV Circle", UDim2.new(0, 0, 0, 0), "Visuals", "FOVCircle")
+
+    -- Управление вкладками
+    for i, tabData in ipairs(Tabs) do
+        local TabButton = CreateTabButton(tabData, i)
+        TabButton.MouseButton1Click:Connect(function()
+            AimbotTab.Visible = i == 1
+            VisualsTab.Visible = i == 2
+        end)
+    end
+
+    -- Сворачивание меню
+    MinimizeButton.MouseButton1Click:Connect(function()
+        Settings.MenuMinimized = not Settings.MenuMinimized
+        if Settings.MenuMinimized then
+            MainFrame.Size = UDim2.new(0, 350, 0, 40)
+            MinimizeButton.Text = "+"
+        else
+            MainFrame.Size = UDim2.new(0, 350, 0, 400)
+            MinimizeButton.Text = "-"
+        end
+    end)
+
+    -- Управление видимостью меню
+    UIS.InputBegan:Connect(function(input)
+        if input.KeyCode == Settings.MenuKey then
+            Settings.MenuVisible = not Settings.MenuVisible
+            MainFrame.Visible = Settings.MenuVisible
+        end
+    end)
+
+    return MainGui
 end
 
 -- Silent Aim логика
@@ -108,6 +353,21 @@ local function GetClosestTarget()
     return closest.Player and closest
 end
 
+-- FOV Circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = Settings.Visuals.FOVCircle
+FOVCircle.Color = Settings.Visuals.CircleColor
+FOVCircle.Thickness = Settings.Visuals.CircleThickness
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+
+local function UpdateFOVCircle()
+    local mousePos = UIS:GetMouseLocation()
+    FOVCircle.Position = mousePos
+    FOVCircle.Radius = Settings.SilentAim.FOV
+    FOVCircle.Visible = Settings.Visuals.FOVCircle and Settings.SilentAim.Enabled
+end
+
 -- Хук для стрельбы
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -125,150 +385,12 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, ...)
 end)
 
--- GUI меню в стиле CS:GO
-local Menu = {
-    Open = false,
-    Main = Instance.new("ScreenGui"),
-    Tabs = {}
-}
-
-Menu.Main.Name = "CSGOCheatMenu"
-Menu.Main.Parent = CG
-
-local function CreateTab(name)
-    local tab = {
-        Frame = Instance.new("Frame"),
-        Name = name,
-        Elements = {}
-    }
-    
-    tab.Frame.Size = UDim2.new(0.2, 0, 0.5, 0)
-    tab.Frame.Position = UDim2.new(0.01, 0, 0.25, 0)
-    tab.Frame.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
-    tab.Frame.BorderSizePixel = 0
-    tab.Frame.Visible = false
-    tab.Frame.Parent = Menu.Main
-    
-    local title = Instance.new("TextLabel")
-    title.Text = name
-    title.Size = UDim2.new(1, 0, 0.1, 0)
-    title.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.Font = Enum.Font.SourceSansBold
-    title.Parent = tab.Frame
-    
-    table.insert(Menu.Tabs, tab)
-    return tab
-end
-
-local function CreateToggle(tab, text, setting, callback)
-    local toggle = Instance.new("TextButton")
-    toggle.Text = text .. ": " .. (Settings[setting[1]][setting[2]] and "ON" or "OFF")
-    toggle.Size = UDim2.new(0.9, 0, 0.08, 0)
-    toggle.Position = UDim2.new(0.05, 0, 0.15 + (#tab.Elements * 0.09), 0)
-    toggle.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
-    toggle.TextColor3 = Color3.new(1, 1, 1)
-    toggle.Parent = tab.Frame
-    
-    toggle.MouseButton1Click:Connect(function()
-        Settings[setting[1]][setting[2]] = not Settings[setting[1]][setting[2]]
-        toggle.Text = text .. ": " .. (Settings[setting[1]][setting[2]] and "ON" or "OFF")
-        if callback then callback() end
-    end)
-    
-    table.insert(tab.Elements, toggle)
-end
-
-local function CreateSlider(tab, text, setting, min, max, callback)
-    local slider = {
-        Frame = Instance.new("Frame"),
-        Value = Settings[setting[1]][setting[2]]
-    }
-    
-    slider.Frame.Size = UDim2.new(0.9, 0, 0.1, 0)
-    slider.Frame.Position = UDim2.new(0.05, 0, 0.15 + (#tab.Elements * 0.11), 0)
-    slider.Frame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
-    slider.Frame.Parent = tab.Frame
-    
-    local label = Instance.new("TextLabel")
-    label.Text = text .. ": " .. slider.Value
-    label.Size = UDim2.new(1, 0, 0.5, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.Parent = slider.Frame
-    
-    local track = Instance.new("Frame")
-    track.Size = UDim2.new(1, 0, 0.3, 0)
-    track.Position = UDim2.new(0, 0, 0.6, 0)
-    track.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-    track.Parent = slider.Frame
-    
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((slider.Value - min) / (max - min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    fill.Parent = track
-    
-    local dragging = false
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-        end
-    end)
-    
-    UIS.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local percent = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-            percent = math.clamp(percent, 0, 1)
-            fill.Size = UDim2.new(percent, 0, 1, 0)
-            slider.Value = math.floor(min + (max - min) * percent)
-            label.Text = text .. ": " .. slider.Value
-            Settings[setting[1]][setting[2]] = slider.Value
-            if callback then callback(slider.Value) end
-        end
-    end)
-    
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    table.insert(tab.Elements, slider)
-end
-
--- Создание вкладок и элементов
-local aimTab = CreateTab("Aimbot")
-CreateToggle(aimTab, "Silent Aim", {"SilentAim", "Enabled"}, UpdateFOVCircle)
-CreateSlider(aimTab, "FOV", {"SilentAim", "FOV"}, 10, 200, UpdateFOVCircle)
-CreateSlider(aimTab, "Hit Chance", {"SilentAim", "HitChance"}, 0, 100)
-CreateToggle(aimTab, "Visible Check", {"SilentAim", "VisibleCheck"})
-
-local visualsTab = CreateTab("Visuals")
-CreateToggle(visualsTab, "FOV Circle", {"Visuals", "FOVCircle"}, UpdateFOVCircle)
-
--- Управление меню
-Menu.Tabs[1].Frame.Visible = true
-
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Settings.MenuKey then
-        Menu.Open = not Menu.Open
-        Menu.Main.Enabled = Menu.Open
-    end
-end)
+-- Создаем меню
+CreateCS2Menu()
 
 -- Основной цикл
 RS.RenderStepped:Connect(function()
     UpdateFOVCircle()
 end)
 
--- Очистка
-game:GetService("Players").PlayerRemoving:Connect(function(player)
-    if player == LocalPlayer then
-        for _, drawing in pairs(DrawingCache) do
-            drawing:Remove()
-        end
-        Menu.Main:Destroy()
-    end
-end)
-
-print("Чит успешно загружен! Нажмите "..tostring(Settings.MenuKey).." для открытия меню")
+print("Чит успешно загружен! Нажмите RightControl для открытия меню")
