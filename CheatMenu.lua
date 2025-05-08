@@ -167,7 +167,7 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end)
 
--- Реализация Silent Aim
+-- Реализация Silent Aim (без mousemoverel)
 RunService.RenderStepped:Connect(function()
     if not Settings.SilentAimEnabled then return end
 
@@ -189,9 +189,10 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- Симуляция прицеливания (без прямого управления мышью)
     if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
-        local headPos = closestPlayer.Character.Head.Position
-        local screenPos = camera:WorldToViewportPoint(headPos)
-        mousemoverel((screenPos.X - mousePos.X) / 2, (screenPos.Y - mousePos.Y) / 2)
+        -- Логика Silent Aim: можно модифицировать оружие или камеру игрока
+        -- Здесь просто выводим информацию для отладки
+        print("Silent Aim на: " .. closestPlayer.Name)
     end
 end)
